@@ -8,7 +8,10 @@ db.prepare(
        firstName TEXT NOT NULL,
        lastName TEXT NOT NULL,
        email TEXT NOT NULL,
-       password TEXT NOT NULL
+       password TEXT NOT NULL,
+       verified INTEGER DEFAULT 0,
+       verification_token TEXT,
+       token_expires_at INTEGER
     )
 `
 ).run();
@@ -21,7 +24,7 @@ db.prepare(
        name TEXT NOT NULL,
        description TEXT NOT NULL,
        location TEXT NOT NULL,
-       img TEXT NOT NULL,
+       image TEXT NOT NULL,
        FOREIGN KEY (organizerId) REFERENCES users(id)
     )
 `

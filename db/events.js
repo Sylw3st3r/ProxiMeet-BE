@@ -25,13 +25,13 @@ const getAllUserEvents = (organizerId) => {
     .all(Number(organizerId));
 };
 
-const addEvent = (organizerId, name, description, location, img) => {
+const addEvent = (organizerId, name, description, location, image) => {
   db.prepare(
     `
-        INSERT INTO event (organizerId, name, description, location, img)
+        INSERT INTO event (organizerId, name, description, location, image)
         VALUES (?, ?, ?, ?, ?)
       `
-  ).run(Number(organizerId), name, description, location, img);
+  ).run(Number(organizerId), name, description, location, image);
 };
 
 exports.addEvent = addEvent;

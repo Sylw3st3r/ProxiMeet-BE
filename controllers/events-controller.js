@@ -1,11 +1,13 @@
-const eventsDataAccess = require("../data-access/events");
+const eventsDataAccess = require("../db/events");
+const Error = require("../models/error");
 
 const addEvent = async (req, res, next) => {
-  const { name, description, location, img } = req.body;
+  const { name, location, description } = req.body;
+  const image = req.file.filename;
   const { userId } = req.tokenData;
 
   try {
-    eventsDataAccess.addEvent(userId, name, description, location, img);
+    eventsDataAccess.addEvent(userId, name, description, location, image);
   } catch (err) {
     res.status(500).json({
       error: "Failed to add event",
@@ -13,20 +15,29 @@ const addEvent = async (req, res, next) => {
     });
   }
 
-  res.status(201);
+  res.status(201).json({
+    name,
+    location,
+    description,
+    image,
+  });
 };
 
 const getEvent = async (req, res, next) => {
   try {
     const event = eventsDataAccess.getEvent(req.params.id);
+
+    if (!event) {
+      return next(new Error("Event with this id doesnt exits!"));
+    }
+
     res.status(200).json({
       event: event,
     });
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to add event",
-      details: err.message,
-    });
+    return next(
+      new Error("Something went wrong when trying to access this event")
+    );
   }
 };
 
