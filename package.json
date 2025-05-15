@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js"
+    "start": "nodemon index.js",
+    "clear": "rm -f event-planer.db && rm -rf images/*"
   },
   "author": "",
   "license": "ISC",

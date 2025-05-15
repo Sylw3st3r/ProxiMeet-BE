@@ -23,8 +23,9 @@ db.prepare(
        organizerId INTEGER NOT NULL,
        name TEXT NOT NULL,
        description TEXT NOT NULL,
-       location TEXT NOT NULL,
        image TEXT NOT NULL,
+       lat REAL,
+       lng REAL,
        FOREIGN KEY (organizerId) REFERENCES users(id)
     )
 `

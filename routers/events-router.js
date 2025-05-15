@@ -23,7 +23,11 @@ router.put("/add", upload.single("image"), eventsController.addEvent);
 
 router.get("/all", eventsController.getAllEvents);
 
+router.get("/near", eventsController.getAllEventsInRadius);
+
 router.get("/:id", eventsController.getEvent);
+
+router.patch("/edit/:id", upload.single("image"), eventsController.editEvent);
 
 router.get("/user-events", eventsController.getAllUserEvents);
 
