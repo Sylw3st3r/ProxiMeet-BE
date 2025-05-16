@@ -1,6 +1,6 @@
-const nodemailer = require("nodemailer");
+import { createTransport } from "nodemailer";
 
-const transporter = nodemailer.createTransport({
+const transporter = createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true,
@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function sendVerificationEmail(email, token) {
+export async function sendVerificationEmail(email: string, token: string) {
   const appVerificationLink = `http://localhost:3000/verify/${token}`;
   await transporter.sendMail({
     from: '"Event planner" sylw3st3r.projects@gmail.com',
@@ -55,5 +55,3 @@ async function sendVerificationEmail(email, token) {
 `,
   });
 }
-
-exports.sendVerificationEmail = sendVerificationEmail;

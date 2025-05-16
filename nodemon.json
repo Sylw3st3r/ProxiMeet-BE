@@ -1,0 +1,13 @@
+{
+  "watch": [
+    "controllers",
+    "middleware",
+    "models",
+    "routers",
+    "utils",
+    "index.ts"
+  ],
+  "ext": "ts,json",
+  "ignore": ["node_modules"],
+  "exec": "ts-node index.ts"
+}

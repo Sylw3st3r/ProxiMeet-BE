@@ -1,5 +1,5 @@
-const sql = require("better-sqlite3");
-const db = sql("event-planer.db");
+import Database from "better-sqlite3";
+const db = Database("event-planer.db");
 
 db.prepare(
   `
