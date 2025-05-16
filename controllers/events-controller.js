@@ -66,7 +66,7 @@ const editEvent = async (req, res, next) => {
 const getEvent = async (req, res, next) => {
   try {
     const event = eventsDataAccess.getEvent(req.params.id);
-    
+
     if (!event) {
       return next(new Error("Event with this id doesnt exits!"));
     }
@@ -81,38 +81,68 @@ const getEvent = async (req, res, next) => {
   }
 };
 
-const getAllEvents = async (req, res, next) => {
-  res.status(200).json({
-    events: eventsDataAccess.getAllEvents(),
-  });
+const getEvents = async (req, res, next) => {
+  const search = req.query.search;
+  const page = req.query.page;
+
+  try {
+    res
+      .status(200)
+      .json(eventsDataAccess.getPaginatedEvents(search, Number(page), 10));
+  } catch (err) {
+    return next(new Error(err.message));
+  }
 };
 
-const getAllEventsInRadius = async (req, res, next) => {
+const getAllEventsWithinRadius = async (req, res, next) => {
   const lat = req.query.lat;
   const lng = req.query.lng;
   const radius = req.query.radius || 20;
+  const unit = req.query.unit === "km" ? "km" : "mi";
 
   if (!lat || !lng) {
     return next(new Error("No latitude or longitude passed!"));
   }
 
+  let events;
+
+  try {
+    events = eventsDataAccess.getEventsWithinRadius(lat, lng, radius, unit);
+  } catch (err) {
+    return next(new Error(err.message));
+  }
+
   res.status(200).json({
-    events: eventsDataAccess.getAllEventsInRadius(lat, lng, radius),
+    events,
   });
 };
 
 const getAllUserEvents = async (req, res, next) => {
   const { userId } = req.tokenData;
 
-  res.status(200),
-    json({
-      events: eventsDataAccess.getAllUserEvents(userId),
-    });
+  const search = req.query.search;
+  const page = req.query.page;
+  const limit = req.query.limit;
+
+  try {
+    res
+      .status(200)
+      .json(
+        eventsDataAccess.getPaginatedEvents(
+          search,
+          Number(page),
+          Number(limit),
+          Number(userId)
+        )
+      );
+  } catch (err) {
+    return next(new Error(err.message));
+  }
 };
 
 exports.addEvent = addEvent;
 exports.editEvent = editEvent;
 exports.getEvent = getEvent;
-exports.getAllEvents = getAllEvents;
-exports.getAllEventsInRadius = getAllEventsInRadius;
+exports.getEvents = getEvents;
+exports.getAllEventsWithinRadius = getAllEventsWithinRadius;
 exports.getAllUserEvents = getAllUserEvents;

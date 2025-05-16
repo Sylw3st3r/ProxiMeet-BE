@@ -21,14 +21,14 @@ router.use(checkAuth);
 
 router.put("/add", upload.single("image"), eventsController.addEvent);
 
-router.get("/all", eventsController.getAllEvents);
+router.get("/all", eventsController.getEvents);
 
-router.get("/near", eventsController.getAllEventsInRadius);
+router.get("/own", eventsController.getAllUserEvents);
+
+router.get("/near", eventsController.getAllEventsWithinRadius);
 
 router.get("/:id", eventsController.getEvent);
 
 router.patch("/edit/:id", upload.single("image"), eventsController.editEvent);
-
-router.get("/user-events", eventsController.getAllUserEvents);
 
 module.exports = router;

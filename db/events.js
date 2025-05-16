@@ -11,20 +11,6 @@ const getEvent = (id) => {
     .get(Number(id));
 };
 
-const getAllEvents = () => {
-  return db.prepare("SELECT * FROM event").all();
-};
-
-const getAllUserEvents = (organizerId) => {
-  return db
-    .prepare(
-      `
-        SELECT * FROM event WHERE organizerId = ?
-    `
-    )
-    .all(Number(organizerId));
-};
-
 const addEvent = (organizerId, name, description, image, lat, lng) => {
   db.prepare(
     `
@@ -56,16 +42,14 @@ db.function("cos", Math.cos);
 db.function("sin", Math.sin);
 db.function("acos", Math.acos);
 
-const getAllEventsInRadius = (lat, lng, radius) => {
-  const radiusKm = 50;
-  const userLat = 50.07855618144556;
-  const userLng = 19.933233261108402;
+const getEventsWithinRadius = (lat, lng, radius, unit) => {
+  const earthRadius = unit === "km" ? 6371 : 3958.8; // Kilometers or Miles
 
   return db
     .prepare(
       `
     SELECT *, (
-      6371 * acos(
+      ${earthRadius} * acos(
         cos(radians(?)) * cos(radians(lat)) *
         cos(radians(lng) - radians(?)) +
         sin(radians(?)) * sin(radians(lat))
@@ -79,9 +63,47 @@ const getAllEventsInRadius = (lat, lng, radius) => {
     .all(Number(lat), Number(lng), Number(lat), Number(radius));
 };
 
-exports.getAllEventsInRadius = getAllEventsInRadius;
+function getPaginatedEvents(
+  search = "",
+  page = 1,
+  pageSize = 10,
+  organizerId = null
+) {
+  const rows = db
+    .prepare(
+      `
+    SELECT * FROM event
+    WHERE name LIKE @search OR description LIKE @search
+     ${organizerId !== null ? "AND organizerId = @organizerId" : ""}
+    ORDER BY id DESC
+    LIMIT @limit OFFSET @offset
+  `
+    )
+    .all({
+      search: `%${search}%`,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      organizerId,
+    });
+
+  const countStmt = db.prepare(`
+    SELECT COUNT(*) AS total FROM event
+    WHERE name LIKE @search OR description LIKE @search
+     ${organizerId !== null ? "AND organizerId = @organizerId" : ""}
+  `);
+  const { total } = countStmt.get({ search: `%${search}%`, organizerId });
+
+  return {
+    events: rows,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
+exports.getEventsWithinRadius = getEventsWithinRadius;
+exports.getPaginatedEvents = getPaginatedEvents;
 exports.addEvent = addEvent;
 exports.editEvent = editEvent;
-exports.getAllEvents = getAllEvents;
 exports.getEvent = getEvent;
-exports.getAllUserEvents = getAllUserEvents;
