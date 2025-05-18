@@ -1,5 +1,7 @@
 import { Router } from "express";
 import {
+  passwordResetRequestController,
+  resetPasswordController,
   signinController,
   signupController,
   verifyUserController,
@@ -11,6 +13,10 @@ userRouter.put("/signup", signupController);
 
 userRouter.post("/signin", signinController);
 
-userRouter.get("/verify/:token", verifyUserController);
+userRouter.post("/verify", verifyUserController);
+
+userRouter.post("/request-password-reset", passwordResetRequestController);
+
+userRouter.post("/password-reset", resetPasswordController);
 
 export default userRouter;

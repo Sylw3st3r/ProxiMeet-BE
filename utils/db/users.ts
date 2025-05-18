@@ -38,6 +38,16 @@ export function findUserByToken(token: string): User | undefined {
     .get(token) as User | undefined;
 }
 
+export function findUserByPasswordResetToken(token: string): User | undefined {
+  return db
+    .prepare(
+      `
+      SELECT * FROM users WHERE password_reset_token = ?
+    `
+    )
+    .get(token) as User | undefined;
+}
+
 export function verifyUser(id: number): void {
   db.prepare(
     `
@@ -46,15 +56,34 @@ export function verifyUser(id: number): void {
   ).run(id);
 }
 
+export function setPasswordResetToken(
+  id: number,
+  token: string,
+  tokenExpiresAt: number
+): void {
+  db.prepare(
+    `
+    UPDATE users SET password_reset_token = ?, password_reset_token_expires_at = ? WHERE id = ?
+  `
+  ).run(token, tokenExpiresAt, id);
+}
+
+export function resetPassword(id: number, password: string): void {
+  db.prepare(
+    `
+    UPDATE users SET password_reset_token = NULL, password_reset_token_expires_at = NULL, password = ? WHERE id = ?
+  `
+  ).run(password, id);
+}
+
 export function addUser(
   firstName: string,
   lastName: string,
   email: string,
-  password: string
+  password: string,
+  token: string,
+  tokenExpiresAt: number
 ): { lastInsertRowid: number } {
-  const token = generateToken();
-  const tokenExpiresAt = Math.floor(Date.now() / 1000) + 3600;
-
   return db
     .prepare(
       `

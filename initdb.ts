@@ -11,7 +11,9 @@ db.prepare(
        password TEXT NOT NULL,
        verified INTEGER DEFAULT 0,
        verification_token TEXT,
-       token_expires_at INTEGER
+       token_expires_at INTEGER,
+       password_reset_token TEXT,
+       password_reset_token_expires_at INTEGER
     )
 `
 ).run();

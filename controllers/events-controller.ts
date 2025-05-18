@@ -82,8 +82,10 @@ export async function editEventController(
 ) {
   // Schema for the add event request data
   const editEventSchema = yup.object({
-    body: yup.object({
+    params: yup.object({
       id: yup.number().required("Event ID is required"),
+    }),
+    body: yup.object({
       name: yup.string().required("Name is required"),
       description: yup.string().required("Description is required"),
       lat: yup
@@ -99,7 +101,7 @@ export async function editEventController(
       userId: yup.number().required("Missing user ID"),
     }),
     file: yup.object({
-      filename: yup.string().required("Image is required"),
+      filename: yup.string(),
     }),
   });
 
@@ -109,6 +111,7 @@ export async function editEventController(
       {
         body: req.body,
         file: req.file,
+        params: req.params,
         tokenData: (req as VerifiedUserRequest).tokenData,
       },
       { abortEarly: false }
@@ -116,7 +119,8 @@ export async function editEventController(
 
     // If validation is successful, we extract the data
     const {
-      body: { id, name, description, lat, lng },
+      body: { name, description, lat, lng },
+      params: { id },
       tokenData: { userId },
       file: { filename },
     } = validated;

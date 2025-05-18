@@ -4,13 +4,17 @@ import {
   addUser,
   findUserByEmail,
   findUserById,
+  findUserByPasswordResetToken,
   findUserByToken,
+  resetPassword,
+  setPasswordResetToken,
   verifyUser,
 } from "../utils/db/users";
 import HttpError from "../models/error";
-import { sendVerificationEmail } from "../utils/email";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
 import { Response, NextFunction, Request } from "express";
 import * as yup from "yup";
+import { generateToken } from "../utils/token";
 
 export async function signupController(
   req: Request,
@@ -60,17 +64,22 @@ export async function signupController(
       return next(new Error());
     }
 
+    const token = generateToken();
+    const tokenExpiresAt = Math.floor(Date.now() / 1000) + 3600;
+
     const { lastInsertRowid } = addUser(
       firstName,
       lastName,
       email,
-      hashedPassword
+      hashedPassword,
+      token,
+      tokenExpiresAt
     );
 
     const newestUser = findUserById(lastInsertRowid);
 
     if (newestUser) {
-      sendVerificationEmail(email, newestUser.verification_token as string);
+      sendVerificationEmail(email, token);
       res.status(201).json({});
     } else {
       throw new Error();
@@ -153,7 +162,7 @@ export async function verifyUserController(
   next: NextFunction
 ) {
   const verificationSchema = yup.object({
-    params: yup.object({
+    body: yup.object({
       token: yup.string().required("Token is required"),
     }),
   });
@@ -162,14 +171,14 @@ export async function verifyUserController(
     // Validation of the request data
     const validated = await verificationSchema.validate(
       {
-        params: req.params,
+        body: req.body,
       },
       { abortEarly: false }
     );
 
     // If validation is successful, we extract the data
     const {
-      params: { token },
+      body: { token },
     } = validated;
 
     const user = findUserByToken(token);
@@ -196,6 +205,121 @@ export async function verifyUserController(
     }
 
     verifyUser(user.id);
+
+    res.status(200).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong! Please try again later."));
+  }
+}
+
+export async function passwordResetRequestController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const passwordResetTokenRequestSchema = yup.object({
+    body: yup.object({
+      email: yup.string().required("Email is required").email("Invalid email"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await passwordResetTokenRequestSchema.validate(
+      {
+        body: req.body,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { email },
+    } = validated;
+
+    // Check if address email is taken
+    const user = findUserByEmail(email);
+    if (!user) {
+      return next(new Error("User with such email doesn't exists!"));
+    }
+
+    const token = generateToken();
+    const tokenExpiresAt = Math.floor(Date.now() / 1000) + 3600;
+
+    setPasswordResetToken(user.id, token, tokenExpiresAt);
+
+    sendPasswordResetEmail(email, token);
+    res.status(201).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong! Please try again later."));
+  }
+}
+
+export async function resetPasswordController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const verificationSchema = yup.object({
+    body: yup.object({
+      token: yup.string().required("Token is required"),
+      password: yup.string().required("Password is required"),
+      matchingPassword: yup
+        .string()
+        .required("Matching password is required")
+        .test("passwords-match", "Passwords do not match", function (value) {
+          return this.parent.password === value;
+        }),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await verificationSchema.validate(
+      {
+        body: req.body,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { token, password },
+    } = validated;
+
+    const user = findUserByPasswordResetToken(token);
+
+    if (!user) {
+      return next(
+        new HttpError("User with this token does not exist!", 422, false)
+      );
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (
+      user.password_reset_token_expires_at === null ||
+      user.password_reset_token_expires_at < now
+    ) {
+      return next(
+        new HttpError(
+          "Token has expired! Please request password reset again!",
+          422,
+          true
+        )
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    resetPassword(user.id, hashedPassword);
 
     res.status(200).json({});
   } catch (err) {
