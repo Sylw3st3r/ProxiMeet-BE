@@ -19,14 +19,16 @@ export function addEvent(
   description: string,
   image: string,
   lat: number,
-  lng: number
+  lng: number,
+  start: string,
+  end: string
 ): void {
   db.prepare(
     `
-      INSERT INTO event (organizerId, name, description, image, lat, lng)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO event (organizerId, name, description, image, lat, lng, start, end)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
-  ).run(organizerId, name, description, image, lat, lng);
+  ).run(organizerId, name, description, image, lat, lng, start, end);
 }
 
 export function editEvent(
@@ -35,15 +37,17 @@ export function editEvent(
   description: string,
   image: string,
   lat: number,
-  lng: number
+  lng: number,
+  start: string,
+  end: string
 ): void {
   db.prepare(
     `
       UPDATE event
-      SET name = ?, description = ?, image = ?, lat = ?, lng = ?
+      SET name = ?, description = ?, image = ?, lat = ?, lng = ?, start = ?, end = ?
       WHERE id = ?
     `
-  ).run(name, description, image, lat, lng, eventId);
+  ).run(name, description, image, lat, lng, start, end, eventId);
 }
 
 // Custom SQLite functions

@@ -28,6 +28,8 @@ db.prepare(
        image TEXT NOT NULL,
        lat REAL,
        lng REAL,
+       start TEXT,
+       end TEXT,
        FOREIGN KEY (organizerId) REFERENCES users(id)
     )
 `
@@ -39,7 +41,6 @@ db.prepare(
     id INTEGER PRIMARY KEY,
     user_id INTEGER,
     token TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
 `

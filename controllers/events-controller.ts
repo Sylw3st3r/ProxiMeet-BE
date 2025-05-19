@@ -28,6 +28,35 @@ export async function addEventController(
         .number()
         .typeError("Longitude must be a number")
         .required("Longitude is required"),
+      start: yup
+        .string()
+        .required("Start date is required")
+        .test(
+          "is-valid-date",
+          "Start must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        ),
+      end: yup
+        .string()
+        .required("End date is required")
+        .test(
+          "is-valid-date",
+          "End must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        )
+        .test(
+          "is-after-start",
+          "End date must be after start date",
+          function (end) {
+            const { start } = this.parent;
+            if (!start || !end) return true; // Let other validators handle required
+            return Date.parse(end) > Date.parse(start);
+          }
+        ),
     }),
     tokenData: yup.object({
       userId: yup.number().required("Missing user ID"),
@@ -50,13 +79,13 @@ export async function addEventController(
 
     // If validation is successful, we extract the data
     const {
-      body: { name, description, lat, lng },
+      body: { name, description, lat, lng, start, end },
       tokenData: { userId },
       file: { filename },
     } = validated;
 
     // Add new event to the database
-    addEvent(userId, name, description, filename, lat, lng);
+    addEvent(userId, name, description, filename, lat, lng, start, end);
 
     // Return the created event
     res.status(201).json({
@@ -65,12 +94,15 @@ export async function addEventController(
       image: filename,
       lat,
       lng,
+      start,
+      end,
     });
   } catch (err) {
     // Handle validation errors
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));
     }
+    console.log(err);
     return next(new HttpError("Something went wrong!"));
   }
 }
@@ -96,6 +128,35 @@ export async function editEventController(
         .number()
         .typeError("Longitude must be a number")
         .required("Longitude is required"),
+      start: yup
+        .string()
+        .required("Start date is required")
+        .test(
+          "is-valid-date",
+          "Start must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        ),
+      end: yup
+        .string()
+        .required("End date is required")
+        .test(
+          "is-valid-date",
+          "End must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        )
+        .test(
+          "is-after-start",
+          "End date must be after start date",
+          function (end) {
+            const { start } = this.parent;
+            if (!start || !end) return true; // Let other validators handle required
+            return Date.parse(end) > Date.parse(start);
+          }
+        ),
     }),
     tokenData: yup.object({
       userId: yup.number().required("Missing user ID"),
@@ -119,7 +180,7 @@ export async function editEventController(
 
     // If validation is successful, we extract the data
     const {
-      body: { name, description, lat, lng },
+      body: { name, description, lat, lng, start, end },
       params: { id },
       tokenData: { userId },
       file: { filename },
@@ -143,7 +204,7 @@ export async function editEventController(
       );
     }
 
-    editEvent(id, name, description, updatedImage, lat, lng);
+    editEvent(id, name, description, updatedImage, lat, lng, start, end);
 
     res.status(200).json({
       id,
@@ -151,6 +212,8 @@ export async function editEventController(
       description,
       lat,
       lng,
+      start,
+      end,
       image: updatedImage,
     });
   } catch (err) {

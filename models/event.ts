@@ -6,6 +6,8 @@ export interface Event {
   image: string;
   lat: number;
   lng: number;
+  start: string;
+  end: string;
 }
 
 export interface EventWithDistance extends Event {
