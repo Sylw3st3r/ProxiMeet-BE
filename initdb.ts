@@ -32,3 +32,15 @@ db.prepare(
     )
 `
 ).run();
+
+db.prepare(
+  `
+   CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    token TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
+`
+).run();

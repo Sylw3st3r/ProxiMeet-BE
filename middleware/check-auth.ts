@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import { VerifiedUserRequest } from "../models/verified-user-request";
+import { verifyAccessToken } from "../utils/auth";
+import HttpError from "../models/error";
 
 export function checkAuthMiddleware(
   req: Request,
@@ -20,14 +22,14 @@ export function checkAuthMiddleware(
       return;
     }
     const token = authorizationHeader.split(" ")[1];
-    const tokenData = jwt.verify(token, "SECRETKEY") as { userId: number };
+    const tokenData = verifyAccessToken(token);
     (req as VerifiedUserRequest).tokenData = { userId: tokenData.userId };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      next(new Error("Unauthorized! Provided token has expired!"));
+      next(new HttpError("Unauthorized! Provided token has expired!", 401));
     } else {
-      next(new Error("Unauthorized!"));
+      next(new HttpError("Unauthorized!"));
     }
   }
 }

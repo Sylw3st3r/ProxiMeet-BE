@@ -15,6 +15,16 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
 import { Response, NextFunction, Request } from "express";
 import * as yup from "yup";
 import { generateToken } from "../utils/token";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../utils/auth";
+import {
+  getRefreshToken,
+  revokeToken,
+  saveRefreshToken,
+} from "../utils/db/refresh_tokens";
 
 export async function signupController(
   req: Request,
@@ -139,13 +149,17 @@ export async function signinController(
     }
 
     // Generate token
-    let token = jwt.sign({ userId: user.id }, "SECRETKEY", { expiresIn: "1h" });
+    let token = generateAccessToken(user.id);
+    let refreshToken = generateRefreshToken(user.id);
+
+    saveRefreshToken(user.id, refreshToken);
 
     res.status(200).json({
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
       token: token,
+      refreshToken,
     });
   } catch (err) {
     // Handle validation errors
@@ -321,6 +335,88 @@ export async function resetPasswordController(
 
     resetPassword(user.id, hashedPassword);
 
+    res.status(200).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong! Please try again later."));
+  }
+}
+
+export async function refreshController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const verificationSchema = yup.object({
+    body: yup.object({
+      refreshToken: yup.string().required("Refresh token is required"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await verificationSchema.validate(
+      {
+        body: req.body,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { refreshToken },
+    } = validated;
+
+    const savedToken = getRefreshToken(refreshToken);
+
+    if (!savedToken) {
+      return next(new HttpError("", 422));
+    }
+
+    const { userId } = verifyRefreshToken(refreshToken);
+    const newAccessToken = generateAccessToken(userId);
+    res.status(200).json({ token: newAccessToken });
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    } else if (err instanceof jwt.TokenExpiredError) {
+      revokeToken(req.body.refreshToken);
+      return next(new Error("Unauthorized! Provided token has expired!"));
+    }
+    return next(new Error("Something went wrong! Please try again later."));
+  }
+}
+
+export async function logoutController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const verificationSchema = yup.object({
+    body: yup.object({
+      refreshToken: yup.string().required("Refresh token is required"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await verificationSchema.validate(
+      {
+        body: req.body,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { refreshToken },
+    } = validated;
+
+    revokeToken(refreshToken);
     res.status(200).json({});
   } catch (err) {
     // Handle validation errors

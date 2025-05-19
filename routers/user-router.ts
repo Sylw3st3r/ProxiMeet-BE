@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
+  logoutController,
   passwordResetRequestController,
+  refreshController,
   resetPasswordController,
   signinController,
   signupController,
@@ -18,5 +20,9 @@ userRouter.post("/verify", verifyUserController);
 userRouter.post("/request-password-reset", passwordResetRequestController);
 
 userRouter.post("/password-reset", resetPasswordController);
+
+userRouter.post("/token", refreshController);
+
+userRouter.post("/logout", logoutController);
 
 export default userRouter;
