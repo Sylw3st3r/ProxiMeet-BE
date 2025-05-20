@@ -124,3 +124,7 @@ export function getPaginatedEvents(
     totalPages: Math.ceil(total / pageSize),
   };
 }
+
+export function deleteEvent(id: number): void {
+  db.prepare("DELETE FROM event WHERE id = ?").run(id);
+}

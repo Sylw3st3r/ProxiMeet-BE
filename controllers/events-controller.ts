@@ -1,5 +1,6 @@
 import {
   addEvent,
+  deleteEvent,
   editEvent,
   getEvent,
   getEventsWithinRadius,
@@ -411,5 +412,64 @@ export async function getAllUserEventsController(
     return next(
       new Error("Something went wrong when trying to access user events")
     );
+  }
+}
+
+export async function deleteEventController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the delete event request data
+  const deleteEventSchema = yup.object({
+    params: yup.object({
+      id: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await deleteEventSchema.validate(
+      {
+        params: req.params,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      params: { id },
+      tokenData: { userId },
+    } = validated;
+
+    const event = getEvent(id);
+
+    if (!event) {
+      return next(new HttpError("Event with this id doesnt exits!", 422));
+    }
+
+    if (event.organizerId !== userId) {
+      return next(
+        new HttpError(
+          "Users id doesnt match the id of organizer! Unauthorized to make a change",
+          422
+        )
+      );
+    }
+
+    deleteEvent(id);
+
+    res.status(200).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    console.log(err);
+    return next(new Error("Something went wrong!"));
   }
 }
