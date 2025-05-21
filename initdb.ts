@@ -20,6 +20,17 @@ db.prepare(
 
 db.prepare(
   `
+   CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    token TEXT,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`
+).run();
+
+db.prepare(
+  `
    CREATE TABLE IF NOT EXISTS event (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
        organizerId INTEGER NOT NULL,
@@ -30,18 +41,19 @@ db.prepare(
        lng REAL,
        start TEXT,
        end TEXT,
-       FOREIGN KEY (organizerId) REFERENCES users(id)
+       FOREIGN KEY (organizerId) REFERENCES users(id) ON DELETE CASCADE
     )
 `
 ).run();
 
 db.prepare(
   `
-   CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id INTEGER PRIMARY KEY,
-    user_id INTEGER,
-    token TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id)
-  );
-`
+  CREATE TABLE IF NOT EXISTS event_attendance (
+    user_id INTEGER NOT NULL,
+    event_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, event_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (event_id) REFERENCES event(id) ON DELETE CASCADE
+  )
+  `
 ).run();

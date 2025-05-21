@@ -1,6 +1,6 @@
 export default class HttpError extends Error {
   constructor(
-    public messages: string,
+    public message: string,
     public code?: number,
     public generateNewToken?: boolean
   ) {

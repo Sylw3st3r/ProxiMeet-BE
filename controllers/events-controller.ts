@@ -1,9 +1,15 @@
 import {
+  addAttendanceForEvent,
   addEvent,
+  checkEventOverlap,
+  deleteAttendanceForEvent,
   deleteEvent,
   editEvent,
+  getAttendance,
+  getAttendedEvents,
   getEvent,
   getEventsWithinRadius,
+  getOwnPaginatedEvents,
   getPaginatedEvents,
 } from "../utils/db/events";
 import HttpError from "../models/error";
@@ -284,6 +290,9 @@ export async function getEventsController(
       page: yup.number().required("Page is required"),
       limit: yup.number().required("Limit is required"),
     }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
   });
 
   try {
@@ -291,6 +300,7 @@ export async function getEventsController(
     const validated = await getAllEventsSchema.validate(
       {
         query: req.query,
+        tokenData: (req as VerifiedUserRequest).tokenData,
       },
       { abortEarly: false }
     );
@@ -298,9 +308,10 @@ export async function getEventsController(
     // If validation is successful, we extract the data
     const {
       query: { search, page, limit },
+      tokenData: { userId },
     } = validated;
 
-    const events = getPaginatedEvents(search || "", page, limit);
+    const events = getPaginatedEvents(search || "", page, limit, userId);
 
     res.status(200).json(events);
   } catch (err) {
@@ -401,7 +412,7 @@ export async function getAllUserEventsController(
       tokenData: { userId },
     } = validated;
 
-    const events = getPaginatedEvents(search || "", page, limit, userId);
+    const events = getOwnPaginatedEvents(search || "", page, limit, userId);
 
     res.status(200).json(events);
   } catch (err) {
@@ -469,7 +480,239 @@ export async function deleteEventController(
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));
     }
-    console.log(err);
     return next(new Error("Something went wrong!"));
+  }
+}
+
+export async function checkAttendanceOverlapController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the delete event request data
+  const checkAttendanceOverlapSchema = yup.object({
+    body: yup.object({
+      id: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await checkAttendanceOverlapSchema.validate(
+      {
+        body: req.body,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { id },
+      tokenData: { userId },
+    } = validated;
+
+    const event = getEvent(id);
+
+    if (!event) {
+      return next(new HttpError("Event with this id doesnt exits!", 422));
+    }
+
+    const events = checkEventOverlap(userId, event.start, event.end);
+
+    res.status(200).json({
+      events,
+    });
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong!"));
+  }
+}
+
+export async function addEventAttendanceController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the delete event request data
+  const toggleEventAttendanceSchema = yup.object({
+    body: yup.object({
+      id: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await toggleEventAttendanceSchema.validate(
+      {
+        body: req.body,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { id },
+      tokenData: { userId },
+    } = validated;
+
+    const event = getEvent(id);
+
+    if (!event) {
+      return next(new HttpError("Event with this id doesnt exits!", 422));
+    }
+
+    const attending = getAttendance(userId, id);
+
+    if (attending) {
+      return next(
+        new HttpError("You already intend to attend this event", 422)
+      );
+    }
+
+    addAttendanceForEvent(userId, id);
+
+    res.status(200).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong!"));
+  }
+}
+
+export async function removeEventAttendanceController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the delete event request data
+  const deleteEventAttendanceSchema = yup.object({
+    body: yup.object({
+      id: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await deleteEventAttendanceSchema.validate(
+      {
+        body: req.body,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      body: { id },
+      tokenData: { userId },
+    } = validated;
+
+    const attendance = getAttendance(userId, id);
+
+    if (!attendance) {
+      return next(
+        new HttpError(
+          "You there is no intention of attending this event by provided user",
+          422
+        )
+      );
+    }
+
+    deleteAttendanceForEvent(userId, id);
+
+    res.status(200).json({});
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong!"));
+  }
+}
+
+export async function getAttendedEventsController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the add get all user events request data
+  const getAllEventsSchema = yup.object({
+    query: yup.object({
+      start: yup
+        .string()
+        .required("Start date is required")
+        .test(
+          "is-valid-date",
+          "Start must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        ),
+      end: yup
+        .string()
+        .required("End date is required")
+        .test(
+          "is-valid-date",
+          "End must be a valid ISO date string",
+          (value) => {
+            return !isNaN(Date.parse(value));
+          }
+        )
+        .test(
+          "is-after-start",
+          "End date must be after start date",
+          function (end) {
+            const { start } = this.parent;
+            if (!start || !end) return true; // Let other validators handle required
+            return Date.parse(end) > Date.parse(start);
+          }
+        ),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await getAllEventsSchema.validate(
+      {
+        query: req.query,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      query: { start, end },
+      tokenData: { userId },
+    } = validated;
+
+    const events = getAttendedEvents(userId, start, end);
+
+    res.status(200).json({ events });
+  } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong when trying to access events"));
   }
 }

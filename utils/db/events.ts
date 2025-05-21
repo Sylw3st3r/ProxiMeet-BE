@@ -1,5 +1,11 @@
 import Database from "better-sqlite3";
-import { Event, EventWithDistance, PaginatedEvents } from "../../models/event";
+import {
+  Event,
+  EventWithDistance,
+  PaginatedEvents,
+  EventWithAttendance,
+  PaginatedEventsWithAttendance,
+} from "../../models/event";
 
 const db = Database("event-planer.db");
 
@@ -86,14 +92,68 @@ export function getPaginatedEvents(
   search: string,
   page: number,
   pageSize: number,
-  organizerId: number | null = null
+  userId: number
+): PaginatedEventsWithAttendance {
+  const rows = db
+    .prepare(
+      `
+      SELECT 
+        e.*, 
+        CASE 
+          WHEN ea.user_id IS NOT NULL THEN 1 
+          ELSE 0 
+        END AS attending
+      FROM event e
+      LEFT JOIN event_attendance ea 
+        ON e.id = ea.event_id AND ea.user_id = @userId
+      WHERE (e.name LIKE @search OR e.description LIKE @search)
+      GROUP BY e.id
+      ORDER BY e.id DESC
+      LIMIT @limit OFFSET @offset
+    `
+    )
+    .all({
+      search: `%${search}%`,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      userId,
+    }) as (Event & { attending: number })[];
+
+  const countStmt = db.prepare(`
+    SELECT COUNT(*) AS total FROM event
+    WHERE (name LIKE @search OR description LIKE @search)
+  `);
+
+  const { total } = countStmt.get({
+    search: `%${search}%`,
+  }) as { total: number };
+
+  const events: EventWithAttendance[] = rows.map((row) => ({
+    ...row,
+    attending: !!row.attending,
+  }));
+
+  return {
+    events,
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
+export function getOwnPaginatedEvents(
+  search: string,
+  page: number,
+  pageSize: number,
+  organizerId: number
 ): PaginatedEvents {
   const rows = db
     .prepare(
       `
       SELECT * FROM event
       WHERE (name LIKE @search OR description LIKE @search)
-      ${organizerId !== null ? "AND organizerId = @organizerId" : ""}
+      AND organizerId = @organizerId
       ORDER BY id DESC
       LIMIT @limit OFFSET @offset
     `
@@ -108,7 +168,7 @@ export function getPaginatedEvents(
   const countStmt = db.prepare(`
     SELECT COUNT(*) AS total FROM event
     WHERE (name LIKE @search OR description LIKE @search)
-    ${organizerId !== null ? "AND organizerId = @organizerId" : ""}
+    AND organizerId = @organizerId
   `);
 
   const { total } = countStmt.get({
@@ -123,6 +183,96 @@ export function getPaginatedEvents(
     total,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+// Check if user is attending some events in a time range
+export function checkEventOverlap(
+  userId: number,
+  newStart: string,
+  newEnd: string
+): Event[] {
+  return db
+    .prepare(
+      `
+    SELECT e.*
+    FROM event_attendance ea
+    JOIN event e ON ea.event_id = e.id
+    WHERE ea.user_id = ?
+        AND e.start < ?
+        AND e.end > ?
+  `
+    )
+    .all(userId, newEnd, newStart) as Event[];
+}
+
+export function getAttendance(userId: number, eventId: number) {
+  return db
+    .prepare(
+      `
+    SELECT *
+    FROM event_attendance
+    WHERE user_id = ? AND event_id = ?
+  `
+    )
+    .get(userId, eventId);
+}
+
+export function getAllEventsAttendedByUser(userId: number): Event[] {
+  return db
+    .prepare(
+      `
+    SELECT e.id, e.name, e.start, ea.intention
+    FROM event_attendance ea
+    JOIN event e ON e.id = ea.event_id
+    WHERE ea.user_id = ?
+  `
+    )
+    .all(userId) as Event[];
+}
+
+export function addAttendanceForEvent(userId: number, eventId: number): void {
+  db.prepare(
+    `
+    INSERT OR REPLACE INTO event_attendance (user_id, event_id)
+    VALUES (?, ?)
+  `
+  ).run(userId, eventId);
+}
+
+export function getAttendedEvents(
+  attendeeUserId: number,
+  startRange: string,
+  endRange: string
+): Event[] {
+  return db
+    .prepare(
+      `
+    SELECT e.*
+    FROM event e
+    JOIN event_attendance ea ON e.id = ea.event_id
+    WHERE ea.user_id = @attendeeUserId
+      AND e.start < @endRange
+      AND e.end > @startRange
+    ORDER BY e.id DESC
+  `
+    )
+    .all({
+      attendeeUserId,
+      startRange,
+      endRange,
+    }) as Event[];
+}
+
+export function deleteAttendanceForEvent(
+  userId: number,
+  eventId: number
+): void {
+  db.prepare(
+    `
+    DELETE FROM event_attendance
+    WHERE user_id = ? AND event_id = ?
+  `
+  ).run(userId, eventId);
 }
 
 export function deleteEvent(id: number): void {
