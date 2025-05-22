@@ -7,9 +7,9 @@ import {
   editEventController,
   getAllEventsWithinRadiuController,
   getAllUserEventsController,
-  getAttendedEventsController,
   getEventController,
   getEventsController,
+  getScheduledEventsController,
   removeEventAttendanceController,
 } from "../controllers/events-controller";
 import { checkAuthMiddleware } from "../middleware/check-auth";
@@ -39,7 +39,9 @@ eventsRouter.get("/all", getEventsController);
 
 eventsRouter.get("/own", getAllUserEventsController);
 
-eventsRouter.get("/attended", getAttendedEventsController);
+eventsRouter.get("/schedule", getScheduledEventsController);
+
+eventsRouter.get("/near", getAllEventsWithinRadiuController);
 
 eventsRouter.get("/near", getAllEventsWithinRadiuController);
 

@@ -6,16 +6,17 @@ import {
   deleteEvent,
   editEvent,
   getAttendance,
-  getAttendedEvents,
   getEvent,
   getEventsWithinRadius,
   getOwnPaginatedEvents,
   getPaginatedEvents,
+  getScheduledEventsForUser,
 } from "../utils/db/events";
 import HttpError from "../models/error";
 import { Response, NextFunction, Request } from "express";
 import { VerifiedUserRequest } from "../models/verified-user-request";
 import * as yup from "yup";
+import { startOfDay } from "date-fns";
 
 export async function addEventController(
   req: Request,
@@ -646,13 +647,13 @@ export async function removeEventAttendanceController(
   }
 }
 
-export async function getAttendedEventsController(
+export async function getScheduledEventsController(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
   // Schema for the add get all user events request data
-  const getAllEventsSchema = yup.object({
+  const getScheduledEventsSchema = yup.object({
     query: yup.object({
       start: yup
         .string()
@@ -664,25 +665,13 @@ export async function getAttendedEventsController(
             return !isNaN(Date.parse(value));
           }
         ),
-      end: yup
+      unit: yup
         .string()
-        .required("End date is required")
-        .test(
-          "is-valid-date",
-          "End must be a valid ISO date string",
-          (value) => {
-            return !isNaN(Date.parse(value));
-          }
+        .oneOf(
+          ["day", "week", "month"],
+          'Unit must be either "day", "week" or "month"'
         )
-        .test(
-          "is-after-start",
-          "End date must be after start date",
-          function (end) {
-            const { start } = this.parent;
-            if (!start || !end) return true; // Let other validators handle required
-            return Date.parse(end) > Date.parse(start);
-          }
-        ),
+        .required("Unit is required"),
     }),
     tokenData: yup.object({
       userId: yup.number().required("Missing user ID"),
@@ -691,7 +680,7 @@ export async function getAttendedEventsController(
 
   try {
     // Validation of the request data
-    const validated = await getAllEventsSchema.validate(
+    const validated = await getScheduledEventsSchema.validate(
       {
         query: req.query,
         tokenData: (req as VerifiedUserRequest).tokenData,
@@ -701,11 +690,11 @@ export async function getAttendedEventsController(
 
     // If validation is successful, we extract the data
     const {
-      query: { start, end },
+      query: { start, unit },
       tokenData: { userId },
     } = validated;
 
-    const events = getAttendedEvents(userId, start, end);
+    const events = getScheduledEventsForUser(userId, new Date(start), unit);
 
     res.status(200).json({ events });
   } catch (err) {

@@ -6,6 +6,14 @@ import {
   EventWithAttendance,
   PaginatedEventsWithAttendance,
 } from "../../models/event";
+import {
+  endOfDay,
+  endOfMonth,
+  endOfWeek,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns";
 
 const db = Database("event-planer.db");
 
@@ -239,30 +247,6 @@ export function addAttendanceForEvent(userId: number, eventId: number): void {
   ).run(userId, eventId);
 }
 
-export function getAttendedEvents(
-  attendeeUserId: number,
-  startRange: string,
-  endRange: string
-): Event[] {
-  return db
-    .prepare(
-      `
-    SELECT e.*
-    FROM event e
-    JOIN event_attendance ea ON e.id = ea.event_id
-    WHERE ea.user_id = @attendeeUserId
-      AND e.start < @endRange
-      AND e.end > @startRange
-    ORDER BY e.id DESC
-  `
-    )
-    .all({
-      attendeeUserId,
-      startRange,
-      endRange,
-    }) as Event[];
-}
-
 export function deleteAttendanceForEvent(
   userId: number,
   eventId: number
@@ -277,4 +261,44 @@ export function deleteAttendanceForEvent(
 
 export function deleteEvent(id: number): void {
   db.prepare("DELETE FROM event WHERE id = ?").run(id);
+}
+
+export function getScheduledEventsForUser(
+  userId: number,
+  start: Date,
+  range: "day" | "week" | "month" = "day"
+): Event[] {
+  let startDate, endDate;
+
+  // Calculate time range
+  switch (range) {
+    case "day":
+      startDate = startOfDay(start);
+      endDate = endOfDay(start);
+      break;
+    case "week":
+      startDate = startOfWeek(start);
+      endDate = endOfWeek(start);
+      break;
+    case "month":
+      startDate = startOfMonth(start);
+      endDate = endOfMonth(start);
+      break;
+    default:
+      throw new Error("Invalid range. Use 'day', 'week', or 'month'.");
+  }
+
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
+
+  const stmt = db.prepare(`
+    SELECT DISTINCT e.*
+    FROM event e
+    LEFT JOIN event_attendance ea ON e.id = ea.event_id
+    WHERE (e.organizerId = @userId OR ea.user_id = @userId)
+      AND e.start >= @startIso AND e.start < @endIso
+    ORDER BY e.start ASC
+  `);
+
+  return stmt.all({ userId, startIso, endIso }) as Event[];
 }
