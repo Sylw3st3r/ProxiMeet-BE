@@ -57,3 +57,27 @@ db.prepare(
   )
   `
 ).run();
+
+db.prepare(
+  `
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    sent_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+`
+).run();
+
+db.prepare(
+  `
+  CREATE TABLE IF NOT EXISTS user_notifications (
+    user_id INTEGER NOT NULL,
+    notification_id INTEGER NOT NULL,
+    seen INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, notification_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE
+  );
+`
+).run();

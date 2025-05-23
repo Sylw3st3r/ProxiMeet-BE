@@ -5,6 +5,7 @@ import cors from "cors";
 import HttpError from "./models/error";
 import userRoutes from "./routers/user-router";
 import eventsRoutes from "./routers/events-router";
+import notificationsRouter from "./routers/notifications-router";
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(cors({ origin: "*" }));
 
 app.use("/users", userRoutes);
 app.use("/events", eventsRoutes);
+app.use("/notifications", notificationsRouter);
 
 // Error handling middleware
 app.use((error: HttpError, req: Request, res: Response, next: NextFunction) => {

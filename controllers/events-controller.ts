@@ -16,7 +16,7 @@ import HttpError from "../models/error";
 import { Response, NextFunction, Request } from "express";
 import { VerifiedUserRequest } from "../models/verified-user-request";
 import * as yup from "yup";
-import { startOfDay } from "date-fns";
+import { notifyUsers } from "../utils/db/notifications";
 
 export async function addEventController(
   req: Request,
@@ -200,6 +200,8 @@ export async function editEventController(
       return next(new HttpError("Event with this id doesnt exits!", 422));
     }
 
+    const oldName = event.name;
+
     // Check if there was new image passed. If not, use the old one
     const updatedImage = filename || event.image;
 
@@ -213,6 +215,12 @@ export async function editEventController(
     }
 
     editEvent(id, name, description, updatedImage, lat, lng, start, end);
+
+    notifyUsers(
+      `Event ${event.name} has been edited`,
+      `Event ${event.name} has been edited. Check out the changes!`,
+      id
+    );
 
     res.status(200).json({
       id,
@@ -472,6 +480,12 @@ export async function deleteEventController(
         )
       );
     }
+
+    notifyUsers(
+      `Event ${event.name} has been deleted`,
+      `Event ${event.name} has been deleted. You will no longer be able to attend it`,
+      id
+    );
 
     deleteEvent(id);
 
