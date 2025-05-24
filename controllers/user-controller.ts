@@ -155,6 +155,7 @@ export async function signinController(
     saveRefreshToken(user.id, refreshToken);
 
     res.status(200).json({
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,

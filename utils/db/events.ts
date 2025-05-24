@@ -302,3 +302,17 @@ export function getScheduledEventsForUser(
 
   return stmt.all({ userId, startIso, endIso }) as Event[];
 }
+
+export function getEventAttendees(eventId: number): number[] {
+  const rows = db
+    .prepare(
+      `
+      SELECT user_id
+      FROM event_attendance
+      WHERE event_id = ?
+    `
+    )
+    .all(eventId) as { user_id: number }[];
+
+  return rows.map((row) => row.user_id);
+}
