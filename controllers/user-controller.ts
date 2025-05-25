@@ -57,7 +57,7 @@ export async function signupController(
 
     // If validation is successful, we extract the data
     const {
-      body: { firstName, lastName, email, password, matchingPassword },
+      body: { firstName, lastName, email, password },
     } = validated;
 
     // Check if address email is taken
@@ -159,6 +159,7 @@ export async function signinController(
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      avatar: user.avatar,
       token: token,
       refreshToken,
     });

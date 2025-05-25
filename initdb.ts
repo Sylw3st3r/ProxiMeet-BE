@@ -9,6 +9,7 @@ db.prepare(
        lastName TEXT NOT NULL,
        email TEXT NOT NULL,
        password TEXT NOT NULL,
+       avatar TEXT,
        verified INTEGER DEFAULT 0,
        verification_token TEXT,
        token_expires_at INTEGER,

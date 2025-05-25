@@ -1,5 +1,4 @@
 import { User } from "../../models/user";
-import { generateToken } from "../token";
 import Database from "better-sqlite3";
 
 const db = Database("event-planer.db");
@@ -94,4 +93,40 @@ export function addUser(
     .run(firstName, lastName, email, password, token, tokenExpiresAt) as {
     lastInsertRowid: number;
   };
+}
+
+export function updateUserName(
+  id: number,
+  firstName: string,
+  lastName: string
+): void {
+  db.prepare(
+    `
+    UPDATE users SET firstName = ?, lastName = ? WHERE id = ?
+  `
+  ).run(firstName, lastName, id);
+}
+
+export function updateUserEmail(id: number, email: string): void {
+  db.prepare(
+    `
+    UPDATE users SET email = ? WHERE id = ?
+  `
+  ).run(email, id);
+}
+
+export function updateUserPassword(id: number, password: string): void {
+  db.prepare(
+    `
+    UPDATE users SET password = ? WHERE id = ?
+  `
+  ).run(password, id);
+}
+
+export function updateUserAvatar(id: number, avatar: string): void {
+  db.prepare(
+    `
+    UPDATE users SET avatar = ? WHERE id = ?
+  `
+  ).run(avatar, id);
 }

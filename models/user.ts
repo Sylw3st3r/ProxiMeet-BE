@@ -4,6 +4,7 @@ export interface User {
   lastName: string;
   email: string;
   password: string;
+  avatar: string | null;
   verified: number; // typically 0 or 1
   verification_token: string | null;
   token_expires_at: number | null;

@@ -8,6 +8,7 @@ import eventsRoutes from "./routers/events-router";
 import notificationsRouter from "./routers/notifications-router";
 import { initWebSocket } from "./websockets/websockets-server";
 import http from "http";
+import profileRouter from "./routers/profile-router";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use("/images", express.static("images"));
 app.use(cors({ origin: "*" }));
 
 app.use("/users", userRoutes);
+app.use("/profile", profileRouter);
 app.use("/events", eventsRoutes);
 app.use("/notifications", notificationsRouter);
 
