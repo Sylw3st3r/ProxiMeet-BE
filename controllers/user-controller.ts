@@ -152,7 +152,13 @@ export async function signinController(
     let token = generateAccessToken(user.id);
     let refreshToken = generateRefreshToken(user.id);
 
-    saveRefreshToken(user.id, refreshToken);
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: false, // set true in production with HTTPS
+      sameSite: "lax", // or "strict" depending on your use case
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     res.status(200).json({
       id: user.id,
@@ -161,7 +167,6 @@ export async function signinController(
       email: user.email,
       avatar: user.avatar,
       token: token,
-      refreshToken,
     });
   } catch (err) {
     // Handle validation errors
@@ -353,7 +358,7 @@ export async function refreshController(
   next: NextFunction
 ) {
   const verificationSchema = yup.object({
-    body: yup.object({
+    cookies: yup.object({
       refreshToken: yup.string().required("Refresh token is required"),
     }),
   });
@@ -362,24 +367,20 @@ export async function refreshController(
     // Validation of the request data
     const validated = await verificationSchema.validate(
       {
-        body: req.body,
+        cookies: req.cookies,
       },
       { abortEarly: false }
     );
 
     // If validation is successful, we extract the data
     const {
-      body: { refreshToken },
+      cookies: { refreshToken },
     } = validated;
 
-    const savedToken = getRefreshToken(refreshToken);
-
-    if (!savedToken) {
-      return next(new HttpError("", 422));
-    }
-
     const { userId } = verifyRefreshToken(refreshToken);
+
     const newAccessToken = generateAccessToken(userId);
+
     res.status(200).json({ token: newAccessToken });
   } catch (err) {
     // Handle validation errors
@@ -398,8 +399,27 @@ export async function logoutController(
   res: Response,
   next: NextFunction
 ) {
+  try {
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: false, 
+      sameSite: "lax",
+      path: "/",
+    });
+
+    res.status(200).json({});
+  } catch (err) {
+    return next(new Error("Something went wrong! Please try again later."));
+  }
+}
+
+export async function userDataController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const verificationSchema = yup.object({
-    body: yup.object({
+    cookies: yup.object({
       refreshToken: yup.string().required("Refresh token is required"),
     }),
   });
@@ -408,18 +428,35 @@ export async function logoutController(
     // Validation of the request data
     const validated = await verificationSchema.validate(
       {
-        body: req.body,
+        cookies: req.cookies,
       },
       { abortEarly: false }
     );
 
     // If validation is successful, we extract the data
     const {
-      body: { refreshToken },
+      cookies: { refreshToken },
     } = validated;
 
-    revokeToken(refreshToken);
-    res.status(200).json({});
+    const tokenData = verifyRefreshToken(refreshToken);
+
+    const user = findUserById(tokenData.userId);
+
+    if (!user) {
+      return next(new HttpError("User not found!", 404));
+    }
+    const { id, firstName, lastName, email, avatar } = user;
+
+    const token = generateAccessToken(id);
+
+    res.status(200).json({
+      id,
+      firstName,
+      lastName,
+      email,
+      avatar,
+      token,
+    });
   } catch (err) {
     // Handle validation errors
     if (err instanceof yup.ValidationError) {

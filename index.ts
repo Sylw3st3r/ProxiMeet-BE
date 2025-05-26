@@ -9,15 +9,23 @@ import notificationsRouter from "./routers/notifications-router";
 import { initWebSocket } from "./websockets/websockets-server";
 import http from "http";
 import profileRouter from "./routers/profile-router";
+const cookieParser = require("cookie-parser");
 
 const app = express();
 
 app.use(bodyParser.json());
 
+app.use(cookieParser());
+
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true, // Allow cookies
+  })
+);
+
 // Make images from images directory available for FE
 app.use("/images", express.static("images"));
-
-app.use(cors({ origin: "*" }));
 
 app.use("/users", userRoutes);
 app.use("/profile", profileRouter);
@@ -36,7 +44,7 @@ app.use((error: HttpError, req: Request, res: Response, next: NextFunction) => {
   }
   console.log(error);
   res.status(error.code || 500).json({
-    errorDescription: error.message || "Unknown error has occurred!",
+    message: error.message || "Unknown error has occurred!",
   });
 });
 

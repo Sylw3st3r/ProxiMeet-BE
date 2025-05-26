@@ -6,6 +6,7 @@ import {
   resetPasswordController,
   signinController,
   signupController,
+  userDataController,
   verifyUserController,
 } from "../controllers/user-controller";
 
@@ -21,8 +22,10 @@ userRouter.post("/request-password-reset", passwordResetRequestController);
 
 userRouter.post("/password-reset", resetPasswordController);
 
-userRouter.post("/token", refreshController);
+userRouter.get("/token", refreshController);
 
 userRouter.post("/logout", logoutController);
+
+userRouter.get("/me", userDataController);
 
 export default userRouter;

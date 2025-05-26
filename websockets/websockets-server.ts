@@ -1,5 +1,4 @@
 import { verifyAccessToken } from "../utils/auth";
-import { getEventAttendees } from "../utils/db/events";
 import connectedUsers from "./connected-users";
 
 const WebSocket = require("ws");
@@ -21,6 +20,10 @@ export function initWebSocket(server: any) {
     try {
       const tokenData = verifyAccessToken(token);
       userId = tokenData.userId;
+      const existingSocket = connectedUsers.get(userId);
+      if (existingSocket && existingSocket.readyState === WebSocket.OPEN) {
+        existingSocket.close(4002, "Replaced by new connection");
+      }
       connectedUsers.set(userId, ws);
     } catch {
       ws.close(4001, "Invalid token");

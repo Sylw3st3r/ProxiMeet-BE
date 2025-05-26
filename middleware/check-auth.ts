@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import { VerifiedUserRequest } from "../models/verified-user-request";
 import { verifyAccessToken } from "../utils/auth";
@@ -26,10 +25,6 @@ export function checkAuthMiddleware(
     (req as VerifiedUserRequest).tokenData = { userId: tokenData.userId };
     next();
   } catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      next(new HttpError("Unauthorized! Provided token has expired!", 401));
-    } else {
-      next(new HttpError("Unauthorized!"));
-    }
+    next(new HttpError("Unauthorized", 403));
   }
 }
