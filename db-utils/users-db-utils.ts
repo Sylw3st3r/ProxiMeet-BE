@@ -1,4 +1,4 @@
-import { User } from "../../models/user";
+import { User } from "../models/user.model.js";
 import Database from "better-sqlite3";
 
 const db = Database("event-planer.db");

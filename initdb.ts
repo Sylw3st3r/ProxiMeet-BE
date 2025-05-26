@@ -21,17 +21,6 @@ db.prepare(
 
 db.prepare(
   `
-   CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id INTEGER PRIMARY KEY,
-    user_id INTEGER,
-    token TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-`
-).run();
-
-db.prepare(
-  `
    CREATE TABLE IF NOT EXISTS event (
        id INTEGER PRIMARY KEY AUTOINCREMENT,
        organizerId INTEGER NOT NULL,

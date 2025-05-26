@@ -4,11 +4,11 @@ import {
   updateUserEmail,
   updateUserName,
   updateUserPassword,
-} from "../utils/db/users";
-import HttpError from "../models/error";
+} from "../db-utils/users-db-utils";
+import HttpError from "../models/error.model";
 import { Response, NextFunction, Request } from "express";
 import * as yup from "yup";
-import { VerifiedUserRequest } from "../models/verified-user-request";
+import { VerifiedUserRequest } from "../models/verified-user-request.model";
 
 export async function changeBasicDataController(
   req: Request,

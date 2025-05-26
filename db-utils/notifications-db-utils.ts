@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { PaginatedNotifications } from "../../models/notification";
+import { PaginatedNotifications } from "../models/notification.model";
 
 const db = Database("event-planer.db");
 

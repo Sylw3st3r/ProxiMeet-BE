@@ -5,8 +5,9 @@
     "models",
     "routers",
     "utils",
+    "db-utils",
     "index.ts",
-    "websockets"
+    "sockets"
   ],
   "ext": "ts,json",
   "ignore": ["node_modules"],

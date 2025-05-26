@@ -5,7 +5,7 @@ import {
   PaginatedEvents,
   EventWithAttendance,
   PaginatedEventsWithAttendance,
-} from "../../models/event";
+} from "../models/event.model";
 import {
   endOfDay,
   endOfMonth,

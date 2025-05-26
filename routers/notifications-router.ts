@@ -6,7 +6,7 @@ import {
   markSelectedNotificationsAsSeenController,
   markSelectedNotificationsAsUnseenController,
   unseenNotificationsCountController,
-} from "../controllers/notifications-controller";
+} from "../controllers/notifications.controller";
 
 const notificationsRouter = Router();
 

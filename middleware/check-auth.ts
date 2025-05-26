@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { VerifiedUserRequest } from "../models/verified-user-request";
-import { verifyAccessToken } from "../utils/auth";
-import HttpError from "../models/error";
+import { VerifiedUserRequest } from "../models/verified-user-request.model";
+import { verifyAccessToken } from "../utils/auth.utils";
+import HttpError from "../models/error.model";
 
 export function checkAuthMiddleware(
   req: Request,

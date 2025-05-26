@@ -1,9 +1,8 @@
-import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
-import { VerifiedUserRequest } from "../models/verified-user-request";
+import { VerifiedUserRequest } from "../models/verified-user-request.model";
 import bcrypt from "bcryptjs";
-import HttpError from "../models/error";
-import { findUserById } from "../utils/db/users";
+import HttpError from "../models/error.model";
+import { findUserById } from "../db-utils/users-db-utils";
 import * as yup from "yup";
 
 export async function checkPasswordConfirmedMiddleware(
@@ -56,7 +55,6 @@ export async function checkPasswordConfirmedMiddleware(
 
     next();
   } catch (error) {
-    console.log("AAA");
     next(new HttpError("Something went wrong!"));
   }
 }

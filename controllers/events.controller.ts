@@ -11,12 +11,14 @@ import {
   getOwnPaginatedEvents,
   getPaginatedEvents,
   getScheduledEventsForUser,
-} from "../utils/db/events";
-import HttpError from "../models/error";
+} from "../db-utils/event-db-utils";
+import HttpError from "../models/error.model";
 import { Response, NextFunction, Request } from "express";
-import { VerifiedUserRequest } from "../models/verified-user-request";
+import { VerifiedUserRequest } from "../models/verified-user-request.model";
 import * as yup from "yup";
-import { notifyUsers } from "../utils/db/notifications";
+import { notifyUsers } from "../db-utils/notifications-db-utils";
+import { addUserToChat, removeUserFromChat } from "../utils/chat.utils";
+import { findUserById } from "../db-utils/users-db-utils";
 
 export async function addEventController(
   req: Request,
@@ -587,6 +589,8 @@ export async function addEventAttendanceController(
       return next(new HttpError("Event with this id doesnt exits!", 422));
     }
 
+    const user = findUserById(userId);
+
     const attending = getAttendance(userId, id);
 
     if (attending) {
@@ -595,10 +599,17 @@ export async function addEventAttendanceController(
       );
     }
 
+    if (!user) {
+      return next(new HttpError("User with this id doesnt exits!", 422));
+    }
+
+    addUserToChat(user, id);
+
     addAttendanceForEvent(userId, id);
 
     res.status(200).json({});
   } catch (err) {
+    console.log(err);
     // Handle validation errors
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));
@@ -638,6 +649,8 @@ export async function removeEventAttendanceController(
       tokenData: { userId },
     } = validated;
 
+    const user = findUserById(userId);
+
     const attendance = getAttendance(userId, id);
 
     if (!attendance) {
@@ -649,10 +662,17 @@ export async function removeEventAttendanceController(
       );
     }
 
+    if (!user) {
+      return next(new HttpError("User with this id doesnt exits!", 422));
+    }
+
     deleteAttendanceForEvent(userId, id);
+
+    removeUserFromChat(user, id);
 
     res.status(200).json({});
   } catch (err) {
+    console.log(err);
     // Handle validation errors
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));

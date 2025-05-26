@@ -1,14 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import * as yup from "yup";
-import HttpError from "../models/error";
-import { VerifiedUserRequest } from "../models/verified-user-request";
+import HttpError from "../models/error.model";
+import { VerifiedUserRequest } from "../models/verified-user-request.model";
 import {
   getUnseenNotificationCount,
   getUserNotifications,
   markAllNotificationsAsSeen,
   markNotificationsAsSeen,
   markNotificationsAsUnseen,
-} from "../utils/db/notifications";
+} from "../db-utils/notifications-db-utils";
 
 export async function unseenNotificationsCountController(
   req: Request,

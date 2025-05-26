@@ -11,7 +11,7 @@ import {
   getEventsController,
   getScheduledEventsController,
   removeEventAttendanceController,
-} from "../controllers/events-controller";
+} from "../controllers/events.controller";
 import { checkAuthMiddleware } from "../middleware/check-auth";
 import { Router } from "express";
 

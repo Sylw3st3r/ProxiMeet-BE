@@ -4,7 +4,7 @@ import {
   changeBasicDataController,
   changeEmailController,
   changePasswordController,
-} from "../controllers/profile-controller";
+} from "../controllers/profile.controller";
 import { checkAuthMiddleware } from "../middleware/check-auth";
 import { checkPasswordConfirmedMiddleware } from "../middleware/check-password-confirmed";
 import multer, { diskStorage } from "multer";

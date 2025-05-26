@@ -9,22 +9,20 @@ import {
   resetPassword,
   setPasswordResetToken,
   verifyUser,
-} from "../utils/db/users";
-import HttpError from "../models/error";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../utils/email";
+} from "../db-utils/users-db-utils";
+import HttpError from "../models/error.model";
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../utils/email.utils";
 import { Response, NextFunction, Request } from "express";
 import * as yup from "yup";
-import { generateToken } from "../utils/token";
+import { generateToken } from "../utils/token.utils";
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
-} from "../utils/auth";
-import {
-  getRefreshToken,
-  revokeToken,
-  saveRefreshToken,
-} from "../utils/db/refresh_tokens";
+} from "../utils/auth.utils";
 
 export async function signupController(
   req: Request,
@@ -387,7 +385,12 @@ export async function refreshController(
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));
     } else if (err instanceof jwt.TokenExpiredError) {
-      revokeToken(req.body.refreshToken);
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        path: "/",
+      });
       return next(new Error("Unauthorized! Provided token has expired!"));
     }
     return next(new Error("Something went wrong! Please try again later."));
@@ -402,7 +405,7 @@ export async function logoutController(
   try {
     res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: false, 
+      secure: false,
       sameSite: "lax",
       path: "/",
     });
