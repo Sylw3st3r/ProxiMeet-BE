@@ -1,6 +1,7 @@
 export interface ChatMessage {
-  eventId: number;
-  sender: number; // 0 = system
+  id: number;
+  event_id: number;
+  sender_id: number | null;
   message: string;
-  timestamp: number;
+  timestamp: string;
 }

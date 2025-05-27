@@ -7,10 +7,13 @@ import {
   editEvent,
   getAttendance,
   getEvent,
+  getEventMessagesForUser,
   getEventsWithinRadius,
   getOwnPaginatedEvents,
   getPaginatedEvents,
+  getPaginatedEventsByUnreadMessagesForUser,
   getScheduledEventsForUser,
+  getTotalUnreadMessagesCount,
 } from "../db-utils/event-db-utils";
 import HttpError from "../models/error.model";
 import { Response, NextFunction, Request } from "express";
@@ -732,6 +735,139 @@ export async function getScheduledEventsController(
 
     res.status(200).json({ events });
   } catch (err) {
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong when trying to access events"));
+  }
+}
+
+export async function getTopEventsByUnreadMessagesController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the add get all user events request data
+  const getScheduledEventsSchema = yup.object({
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await getScheduledEventsSchema.validate(
+      {
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      tokenData: { userId },
+    } = validated;
+
+    const totalUnreadMessagesCount = getTotalUnreadMessagesCount(userId);
+
+    res.status(200).json({ totalUnreadMessagesCount });
+  } catch (err) {
+    console.log(err);
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong when trying to access events"));
+  }
+}
+
+export async function getEventsByUnreadCountController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the add get all user events request data
+  const getScheduledEventsSchema = yup.object({
+    query: yup.object({
+      page: yup.number().required("Page is required"),
+      limit: yup.number().required("Limit is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await getScheduledEventsSchema.validate(
+      {
+        tokenData: (req as VerifiedUserRequest).tokenData,
+        query: req.query,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      tokenData: { userId },
+      query: { page, limit },
+    } = validated;
+
+    const data = getPaginatedEventsByUnreadMessagesForUser(userId, page, limit);
+
+    res.status(200).json(data);
+  } catch (err) {
+    console.log(err);
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong when trying to access events"));
+  }
+}
+
+export async function getGroupChatMessagesController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the add get all user events request data
+  const getScheduledEventsSchema = yup.object({
+    query: yup.object({
+      before: yup.number().optional(),
+    }),
+    params: yup.object({
+      eventId: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await getScheduledEventsSchema.validate(
+      {
+        params: req.params,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+        query: req.query,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      tokenData: { userId },
+      params: { eventId },
+      query: { before },
+    } = validated;
+
+    const data = getEventMessagesForUser(userId, eventId, before);
+
+    res.status(200).json(data);
+  } catch (err) {
+    console.log(err);
     // Handle validation errors
     if (err instanceof yup.ValidationError) {
       return next(new HttpError(err.errors.join(", "), 422));

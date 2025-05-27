@@ -7,10 +7,13 @@ import {
   editEventController,
   getAllEventsWithinRadiuController,
   getAllUserEventsController,
+  getTopEventsByUnreadMessagesController,
   getEventController,
   getEventsController,
   getScheduledEventsController,
   removeEventAttendanceController,
+  getGroupChatMessagesController,
+  getEventsByUnreadCountController,
 } from "../controllers/events.controller";
 import { checkAuthMiddleware } from "../middleware/check-auth";
 import { Router } from "express";
@@ -39,9 +42,13 @@ eventsRouter.get("/all", getEventsController);
 
 eventsRouter.get("/own", getAllUserEventsController);
 
-eventsRouter.get("/schedule", getScheduledEventsController);
+eventsRouter.get("/chat/status", getTopEventsByUnreadMessagesController);
 
-eventsRouter.get("/near", getAllEventsWithinRadiuController);
+eventsRouter.get("/chat/:eventId/messages", getGroupChatMessagesController);
+
+eventsRouter.get("/chat/events", getEventsByUnreadCountController);
+
+eventsRouter.get("/schedule", getScheduledEventsController);
 
 eventsRouter.get("/near", getAllEventsWithinRadiuController);
 

@@ -3,7 +3,10 @@ import WebSocket from "ws";
 import { ChatMessage } from "../models/chat-message.model.js";
 import CACHED_EVENT_PARTICIPANTS from "../sockets/cached-event-participants";
 import OPEN_CONNECTIONS_MAP from "../sockets/open-connections";
-import { getEventAttendees } from "../db-utils/event-db-utils";
+import {
+  createMessageForGroup,
+  getEventAttendees,
+} from "../db-utils/event-db-utils";
 
 // Get the current participant list for an event
 export function getParticipantsForEvent(eventId: number): Set<number> {
@@ -31,26 +34,15 @@ export function sendChatMessage(
     return;
   }
 
-  const msg: ChatMessage = {
-    eventId,
-    sender: fromUserId,
-    message: content,
-    timestamp: Date.now(),
-  };
-
-  broadcastToParticipants(eventId, msg);
+  const message = createMessageForGroup(eventId, fromUserId, content);
+  broadcastToParticipants(eventId, message);
 }
 
 // Send a system message (e.g., user joined/left)
 function sendSystemMessage(eventId: number, content: string): void {
-  const msg: ChatMessage = {
-    eventId,
-    sender: 0,
-    message: content,
-    timestamp: Date.now(),
-  };
+  const message = createMessageForGroup(eventId, null, content);
 
-  broadcastToParticipants(eventId, msg);
+  broadcastToParticipants(eventId, message);
 }
 
 // Broadcast a message to all participants of an event
