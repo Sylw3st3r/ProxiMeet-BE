@@ -316,7 +316,12 @@ export function createMessageForGroup(
 ): {
   id: number;
   event_id: number;
-  sender_id: number | null;
+  sender: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  } | null;
   message: string;
   timestamp: string;
 } {
@@ -331,54 +336,65 @@ export function createMessageForGroup(
     )
     .run(eventId, senderId, message, timestamp);
 
+  let sender: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  } | null = null;
+
+  if (senderId !== null) {
+    const user = db
+      .prepare(
+        `
+        SELECT firstName, lastName, avatar
+        FROM users
+        WHERE id = ?
+      `
+      )
+      .get(senderId) as {
+      firstName: string;
+      lastName: string;
+      avatar: string | null;
+    } | null;
+
+    if (user) {
+      sender = {
+        id: senderId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatar: user.avatar,
+      };
+    }
+
+    // Mark the message as read for the sender
+    db.prepare(
+      `
+      INSERT INTO message_reads (user_id, message_id, read_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(user_id, message_id) DO NOTHING
+    `
+    ).run(senderId, result.lastInsertRowid, timestamp);
+  }
+
   return {
     id: result.lastInsertRowid as number,
     event_id: eventId,
-    sender_id: senderId,
+    sender,
     message,
     timestamp,
   };
 }
-
-export function getTopEventsByUnreadMessages(userId: number): {
-  event_id: number;
-  event_name: string;
-  unread_count: number;
-}[] {
-  return db
+export function getUnreadEventIds(userId: number): number[] {
+  const rows = db
     .prepare(
       `
-      SELECT 
-        cm.event_id,
-        e.name as event_name,
-        COUNT(*) as unread_count
-      FROM chat_message cm
-      JOIN event e ON cm.event_id = e.id
-      JOIN event_membership em ON em.event_id = cm.event_id
-      LEFT JOIN message_reads mrs
-        ON cm.id = mrs.message_id AND mrs.user_id = ?
-      WHERE mrs.read_at IS NULL AND em.user_id = ? AND em.left_at IS NULL
-      GROUP BY cm.event_id
-      ORDER BY unread_count DESC
-      LIMIT 20
-    `
-    )
-    .all(userId, userId) as {
-    event_id: number;
-    event_name: string;
-    unread_count: number;
-  }[];
-}
-
-export function getTotalUnreadMessagesCount(userId: number): number {
-  const { unread_count } = db
-    .prepare(
-      `
-    SELECT COUNT(*) AS unread_count
+    SELECT DISTINCT cm.event_id
     FROM chat_message cm
     JOIN event_membership em ON em.event_id = cm.event_id AND em.user_id = ?
     LEFT JOIN message_reads mrs ON cm.id = mrs.message_id AND mrs.user_id = ?
     WHERE mrs.read_at IS NULL
+      AND cm.timestamp >= em.joined_at
       AND (
         (em.left_at IS NULL)
         OR
@@ -386,15 +402,38 @@ export function getTotalUnreadMessagesCount(userId: number): number {
       )
     `
     )
-    .get(userId, userId) as { unread_count: number };
+    .all(userId, userId) as { event_id: number }[];
 
-  return unread_count;
+  return rows.map((row) => row.event_id);
+}
+export function markAllMessagesAsReadForEvent(
+  userId: number,
+  eventId: number
+): void {
+  db.prepare(
+    `
+    INSERT INTO message_reads (user_id, message_id, read_at)
+    SELECT ?, cm.id, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    FROM chat_message cm
+    JOIN event_membership em ON cm.event_id = em.event_id AND em.user_id = ?
+    WHERE cm.event_id = ?
+      AND (
+        em.left_at IS NULL OR cm.timestamp <= em.left_at
+      )
+    ON CONFLICT(user_id, message_id) DO NOTHING
+  `
+  ).run(userId, userId, eventId);
 }
 
 type ChatMessage = {
   id: number;
   event_id: number;
-  sender_id: number | null;
+  sender: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    avatar: string | null;
+  } | null;
   message: string;
 };
 
@@ -408,18 +447,25 @@ export function getEventMessagesForUser(
   eventId: number,
   messageId?: number
 ): GetEventMessagesResult {
-  // Base query selecting messages user has access to
   let baseQuery = `
-    SELECT cm.id, cm.event_id, cm.sender_id, cm.message, cm.timestamp
+    SELECT
+      cm.id,
+      cm.event_id,
+      cm.sender_id,
+      cm.message,
+      cm.timestamp,
+      u.firstName AS sender_firstName,
+      u.lastName AS sender_lastName,
+      u.avatar AS sender_avatar
     FROM chat_message cm
     JOIN event_membership em ON cm.event_id = em.event_id AND em.user_id = ?
+    LEFT JOIN users u ON cm.sender_id = u.id
     WHERE cm.event_id = ?
   `;
 
   const params: (number | string)[] = [userId, eventId];
 
   if (messageId) {
-    // Load messages with id less than messageId (older messages)
     baseQuery += ` AND cm.id < ?`;
     params.push(messageId);
   }
@@ -435,14 +481,28 @@ export function getEventMessagesForUser(
   const result = db.prepare(baseQuery).all(...params) as {
     id: number;
     event_id: number;
-    sender_id: number;
+    sender_id: number | null;
     message: string;
     timestamp: string;
+    sender_firstName: string;
+    sender_lastName: string;
+    sender_avatar: string;
   }[];
 
-  // Reverse the results so that oldest message is first and newest last
-  // This keeps the natural ascending order in the UI from top to bottom
-  const messages = result.reverse();
+  const messages = result.reverse().map((row) => ({
+    id: row.id,
+    event_id: row.event_id,
+    sender: row.sender_id
+      ? {
+          id: row.sender_id,
+          firstName: row.sender_firstName,
+          lastName: row.sender_lastName,
+          avatar: row.sender_avatar,
+        }
+      : null,
+    message: row.message,
+    timestamp: row.timestamp,
+  }));
 
   return {
     messages: messages.slice(-20),
@@ -450,38 +510,7 @@ export function getEventMessagesForUser(
   };
 }
 
-export function getEventsByUnreadMessagesForUser(userId: number): {
-  event_id: number;
-  event_name: string;
-  unread_count: number;
-}[] {
-  return db
-    .prepare(
-      `
-      SELECT 
-        cm.event_id,
-        e.name AS event_name,
-        COUNT(*) AS unread_count
-      FROM chat_message cm
-      JOIN event e ON cm.event_id = e.id
-      JOIN event_membership em ON em.event_id = cm.event_id AND em.user_id = ?
-      LEFT JOIN message_reads mrs ON cm.id = mrs.message_id AND mrs.user_id = ?
-      WHERE mrs.read_at IS NULL
-        AND (
-          em.left_at IS NULL
-          OR (em.left_at IS NOT NULL AND cm.timestamp <= em.left_at)
-        )
-      GROUP BY cm.event_id
-      ORDER BY unread_count DESC
-    `
-    )
-    .all(userId, userId) as {
-    event_id: number;
-    event_name: string;
-    unread_count: number;
-  }[];
-}
-export function getPaginatedEventsByUnreadMessagesForUser(
+export function getPaginatedAvailableEventsForUser(
   userId: number,
   page: number,
   pageSize: number
@@ -489,54 +518,51 @@ export function getPaginatedEventsByUnreadMessagesForUser(
   events: {
     event_id: number;
     event_name: string;
-    unread_count: number;
+    last_message_timestamp: number | null;
   }[];
   currentPage: number;
   totalPages: number;
 } {
-  const totalUnreadEvents = db
+  // Count total distinct events user was ever part of
+  const totalEventsResult = db
     .prepare(
       `
-      SELECT COUNT(DISTINCT cm.event_id) AS total
-      FROM chat_message cm
-      JOIN event_membership em ON em.event_id = cm.event_id AND em.user_id = ?
-      LEFT JOIN message_reads mrs ON cm.id = mrs.message_id AND mrs.user_id = ?
-      WHERE mrs.read_at IS NULL
-        AND (
-          em.left_at IS NULL
-          OR (em.left_at IS NOT NULL AND cm.timestamp <= em.left_at)
-        )
-    `
+    SELECT COUNT(DISTINCT em.event_id) AS total
+    FROM event_membership em
+    WHERE em.user_id = ?
+  `
     )
-    .get(userId, userId) as { total: number };
+    .get(userId) as { total: number };
 
-  const totalPages = Math.ceil(totalUnreadEvents.total / pageSize);
+  const totalPages = Math.ceil(totalEventsResult.total / pageSize);
 
+  // Get paginated events with latest accessible message timestamp
   const events = db
     .prepare(
       `
-      SELECT 
-        cm.event_id,
-        e.name AS event_name,
-        COUNT(*) AS unread_count
-      FROM chat_message cm
-      JOIN event e ON cm.event_id = e.id
-      JOIN event_membership em ON em.event_id = cm.event_id AND em.user_id = ?
-      LEFT JOIN message_reads mrs ON cm.id = mrs.message_id AND mrs.user_id = ?
-      WHERE mrs.read_at IS NULL
-        AND (
-          em.left_at IS NULL
-          OR (em.left_at IS NOT NULL AND cm.timestamp <= em.left_at)
-        )
-      GROUP BY cm.event_id
-      ORDER BY unread_count DESC
-      LIMIT ? OFFSET ?
-    `
+    SELECT
+      e.id AS event_id,
+      e.name AS event_name,
+      MAX(
+        CASE
+          WHEN em.left_at IS NULL THEN cm.timestamp
+          WHEN cm.timestamp <= em.left_at THEN cm.timestamp
+          ELSE NULL
+        END
+      ) AS last_message_timestamp
+    FROM event_membership em
+    JOIN event e ON em.event_id = e.id
+    LEFT JOIN chat_message cm ON cm.event_id = e.id
+    WHERE em.user_id = ?
+    GROUP BY e.id
+    ORDER BY last_message_timestamp DESC NULLS LAST
+    LIMIT ? OFFSET ?
+  `
     )
-    .all(userId, userId, pageSize, (page - 1) * pageSize) as {
+    .all(userId, pageSize, (page - 1) * pageSize) as {
     event_id: number;
     event_name: string;
-    unread_count: number;
+    last_message_timestamp: number | null;
   }[];
 
   return {

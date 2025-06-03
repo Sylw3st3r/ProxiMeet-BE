@@ -10,10 +10,11 @@ import {
   getEventMessagesForUser,
   getEventsWithinRadius,
   getOwnPaginatedEvents,
+  getPaginatedAvailableEventsForUser,
   getPaginatedEvents,
-  getPaginatedEventsByUnreadMessagesForUser,
   getScheduledEventsForUser,
-  getTotalUnreadMessagesCount,
+  getUnreadEventIds,
+  markAllMessagesAsReadForEvent,
 } from "../db-utils/event-db-utils";
 import HttpError from "../models/error.model";
 import { Response, NextFunction, Request } from "express";
@@ -606,9 +607,9 @@ export async function addEventAttendanceController(
       return next(new HttpError("User with this id doesnt exits!", 422));
     }
 
-    addUserToChat(user, id);
-
     addAttendanceForEvent(userId, id);
+
+    addUserToChat(user, id);
 
     res.status(200).json({});
   } catch (err) {
@@ -669,9 +670,9 @@ export async function removeEventAttendanceController(
       return next(new HttpError("User with this id doesnt exits!", 422));
     }
 
-    deleteAttendanceForEvent(userId, id);
-
     removeUserFromChat(user, id);
+
+    deleteAttendanceForEvent(userId, id);
 
     res.status(200).json({});
   } catch (err) {
@@ -769,9 +770,9 @@ export async function getTopEventsByUnreadMessagesController(
       tokenData: { userId },
     } = validated;
 
-    const totalUnreadMessagesCount = getTotalUnreadMessagesCount(userId);
+    const unread = getUnreadEventIds(userId);
 
-    res.status(200).json({ totalUnreadMessagesCount });
+    res.status(200).json({ unread });
   } catch (err) {
     console.log(err);
     // Handle validation errors
@@ -814,7 +815,7 @@ export async function getEventsByUnreadCountController(
       query: { page, limit },
     } = validated;
 
-    const data = getPaginatedEventsByUnreadMessagesForUser(userId, page, limit);
+    const data = getPaginatedAvailableEventsForUser(userId, page, limit);
 
     res.status(200).json(data);
   } catch (err) {
@@ -866,6 +867,50 @@ export async function getGroupChatMessagesController(
     const data = getEventMessagesForUser(userId, eventId, before);
 
     res.status(200).json(data);
+  } catch (err) {
+    console.log(err);
+    // Handle validation errors
+    if (err instanceof yup.ValidationError) {
+      return next(new HttpError(err.errors.join(", "), 422));
+    }
+    return next(new Error("Something went wrong when trying to access events"));
+  }
+}
+
+export async function markMessagesAsReadController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Schema for the add get all user events request data
+  const getScheduledEventsSchema = yup.object({
+    body: yup.object({
+      eventId: yup.number().required("Event ID is required"),
+    }),
+    tokenData: yup.object({
+      userId: yup.number().required("Missing user ID"),
+    }),
+  });
+
+  try {
+    // Validation of the request data
+    const validated = await getScheduledEventsSchema.validate(
+      {
+        body: req.body,
+        tokenData: (req as VerifiedUserRequest).tokenData,
+      },
+      { abortEarly: false }
+    );
+
+    // If validation is successful, we extract the data
+    const {
+      tokenData: { userId },
+      body: { eventId },
+    } = validated;
+
+    markAllMessagesAsReadForEvent(userId, eventId);
+
+    res.status(200).json({});
   } catch (err) {
     console.log(err);
     // Handle validation errors

@@ -72,7 +72,7 @@ db.prepare(
     read_at INTEGER NOT NULL,
     PRIMARY KEY (user_id, message_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+    FOREIGN KEY (message_id) REFERENCES chat_message(id)
   )
 `
 ).run();

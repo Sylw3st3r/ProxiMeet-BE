@@ -14,6 +14,7 @@ import {
   removeEventAttendanceController,
   getGroupChatMessagesController,
   getEventsByUnreadCountController,
+  markMessagesAsReadController,
 } from "../controllers/events.controller";
 import { checkAuthMiddleware } from "../middleware/check-auth";
 import { Router } from "express";
@@ -43,6 +44,8 @@ eventsRouter.get("/all", getEventsController);
 eventsRouter.get("/own", getAllUserEventsController);
 
 eventsRouter.get("/chat/status", getTopEventsByUnreadMessagesController);
+
+eventsRouter.post("/chat/read", markMessagesAsReadController);
 
 eventsRouter.get("/chat/:eventId/messages", getGroupChatMessagesController);
 
